@@ -1,0 +1,15 @@
+tool suite to fuzz check a SAT solver
+
+
+before usage:
+1) make
+2) setup sat solver call in solver.sh
+
+usage:
+
+to check whether the set up solver configuration has bugs
+./fuzzcheck.sh ./solver.sh
+
+
+to minimize a formula (based on exit code)
+./cnfdd original-formula.cnf result-formula.cnf ./tool [-tool-parameter]

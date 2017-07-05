@@ -1,0 +1,26 @@
+# ChangeLog for riss
+
+## v5.2.1
+
+ * DRAT proof can be emmited together with dense
+
+## v5.2.0
+
+ * print PCS always uses current value of printed option
+ * allow to decide whether LBD or activity should be used for clause removal
+ * use binary clause reason structure, handles binary reasons implicitely
+ * add option to run DPLL instead of CDCL ( -dpll )
+ * model enumeration with blocking clauses, and with backtracking
+ * added restart switching heuristics
+ * added dynamic EMA restart schedule, and non-restart option
+ * added trivial model detection (all true or all false, ignores units)
+
+## v5.0.3
+
+ * added (lazy) OTFSS to the solver
+ * added learning biasserting clauses
+ * parameter dependencies
+ * parameter dependencies can be used to reduce printed help
+ * can print parameters into PCS file, according to specified dependency level
+ * parameters to control vivification of shared clauses
+ * enables receiving equivalences before the first try to perform inprocessing

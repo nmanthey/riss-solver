@@ -1,0 +1,7 @@
+
+
+# Add earlyAssumptionConflict option
+
+Stops incremental calls as soon as we encounter a conflict within the decision levels that have been created by assumptions. This should lead to a faster incremental call, but maybe to longer conflicting subsets of assumptions that are returned by the solver. 
+
+Commandline option: -eac
