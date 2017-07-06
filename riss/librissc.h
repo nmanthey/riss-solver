@@ -53,6 +53,7 @@ extern "C" {
 extern const char* riss_signature();
 
 /** initialize a solver instance, and return a pointer to the maintain structure
+ *  This will initialize the solver without any parameters
  */
 extern void* riss_init();
 
@@ -91,11 +92,18 @@ extern void riss_add_prefered_decision(void* riss, const int variable);
 extern void riss_clear_prefered_decisions(void* riss);
 
 /** set a callback to a function that should be frequently tested by the solver to be noticed that the current search should be interrupted
-* Note: the state has to be used as argument when calling the callback
-* @param terminationState pointer to an external state object that is used in the termination callback
-* @param terminationCallbackMethod pointer to an external callback method that indicates termination (return value is != 0 to terminate)
+ * Note: the state has to be used as argument when calling the callback
+ * @param terminationState pointer to an external state object that is used in the termination callback
+ * @param terminationCallbackMethod pointer to an external callback method that indicates termination (return value is != 0 to terminate)
  */
 extern void riss_set_termination_callback(void* riss, void* terminationState, int (*terminationCallbackMethod)(void* state));
+
+/** set a call back function in the solver to call a function with each learned clause (less than a certain size)
+ * @param state pointer to an external state object that is used in the termination callback
+ * @param max_length max length of clauses to be shared
+ * @param learn function that will process the shared learned clause
+ */
+extern void riss_set_learn_callback(void *riss, void * state, int max_length, void (*learn)(void * state, int * clause));
 
 /** apply unit propagation (find units, not shrink clauses) and remove satisfied (learned) clauses from solver
  * @return 1, if simplification did not reveal an empty clause, 0 if an empty clause was found (or inconsistency by unit propagation)

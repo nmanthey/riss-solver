@@ -199,6 +199,17 @@ extern "C" {
         solver->solver->setTerminationCallback(terminationState, terminationCallbackMethod);
     }
 
+    /** set a call back function in the solver to call a function with each learned clause (less than a certain size)
+     * @param state pointer to an external state object that is used in the termination callback
+     * @param max_length max length of clauses to be shared
+     * @param learn function that will process the shared learned clause
+     */
+    void riss_set_learn_callback(void *riss, void * state, int max_length, void (*learn)(void * state, int * clause))
+    {
+        libriss* solver = (libriss*) riss;
+        solver->solver->setLearnCallback(state, max_length, learn);
+    }
+
     /** apply unit propagation (find units, not shrink clauses) and remove satisfied (learned) clauses from solver
      * @return 1, if simplification did not reveal an empty clause, 0 if an empty clause was found (or inconsistency by unit propagation)
      */
