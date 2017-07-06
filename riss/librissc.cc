@@ -86,6 +86,7 @@ extern "C" {
     }
 
     /** initialize a solver instance, and return a pointer to the maintain structure
+     *  This will initialize the solver without any parameters
     */
     void*
     riss_init()
@@ -105,7 +106,7 @@ extern "C" {
     riss_init_configured(const char* presetConfig)
     {
         libriss* riss = new libriss;
-        riss->solverconfig = new Riss::CoreConfig(presetConfig == 0 ? "" : presetConfig);
+        riss->solverconfig = new Riss::CoreConfig(presetConfig == 0 ? "-incSaveState -eac -refConflict" : presetConfig);
         riss->cp3config = new Coprocessor::CP3Config(presetConfig == 0 ? "" : presetConfig);
         riss->solver = new Riss::Solver(riss->solverconfig) ;
         riss->solver->setPreprocessor(riss->cp3config);
@@ -156,7 +157,7 @@ extern "C" {
                 const Var v = var(l2);
                 while (solver->solver->nVars() <= v) { solver->solver->newVar(); }
             }
-            ret = solver->solver->addClause_(solver->currentClause);
+            ret = solver->solver->integrateNewClause(solver->currentClause) != l_False; // use integrate to allow remaining on higher decision levels
             solver->currentClause.clear();
         }
         return ret ? 1 : 0;
@@ -236,7 +237,8 @@ extern "C" {
             while (var(solver->assumptions[i]) >= solver->solver->nVars()) { solver->solver->newVar(); }
         }
 
-        lbool ret = solver->solver->solveLimited(solver->assumptions);
+        solver->solver->integrateAssumptions(solver->assumptions);     // make sure we do not destroy the state by adding new assumptions
+        lbool ret = solver->solver->solveLimited(solver->assumptions); // solve continuing from where we left (intermediate state?)
         solver->assumptions.clear();      // clear assumptions after the solver call finished
         solver->lastResult = ret;     // store last solver result
         return ret == l_False ? 20 : (ret == l_Undef ? 0 : 10);  // return UNSAT, UNKNOWN or SAT, depending on solver result
