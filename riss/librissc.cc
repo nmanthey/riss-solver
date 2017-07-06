@@ -19,7 +19,7 @@ struct libriss {
     Riss::CoreConfig* solverconfig;
     Riss::vec<Riss::Lit> currentClause; // current clause that is added to the solver
     Riss::vec<Riss::Lit> assumptions;   // current set of assumptions that are used for the next SAT call
-    Riss::vec<char> conflictMap;        // map that stores for the last conflict whether a variable is present in the conflict (result of analyzeFinal)
+    Riss::vec<int> conflictMap;        // map that stores for the last conflict whether a variable is present in the conflict (result of analyzeFinal)
     Riss::lbool lastResult;
     libriss() : solver(0), cp3config(0), solverconfig(0), lastResult(l_Undef) {}  // default constructor to ensure everything is set to 0
 };
@@ -33,12 +33,12 @@ void riss_build_conflict_map(libriss* solver)
 {
     if (solver->conflictMap.size() != 0) { return; }
     assert(solver->lastResult == l_False && "works only if the last result was unsatisfiable");
-    solver->conflictMap.growTo(solver->solver->nVars());   // one spot for each variable
+    solver->conflictMap.growTo(solver->solver->nVars() * 2); // one spot for each literal
 
     // set the flag for all variables of the current conflict clause
     const vec<Lit>& finalConflict = solver->solver->conflict;
     for (int i = 0 ; i < finalConflict.size(); ++ i) {
-        solver->conflictMap[ var(finalConflict[i]) ] = 1;
+        solver->conflictMap[ toInt(finalConflict[i]) ] = 1;
     }
 }
 
@@ -167,6 +167,7 @@ extern "C" {
     void
     riss_assume(void* riss, const int lit)
     {
+        if (lit == 0) { return; }
         libriss* solver = (libriss*) riss;
         solver->lastResult = l_Undef; // set state of the solver to l_Undef
         solver->assumptions.push(lit > 0 ? mkLit(lit - 1, false) : mkLit(-lit - 1, true));
@@ -229,6 +230,7 @@ extern "C" {
     riss_sat_limited(void* riss, const int64_t nOfConflicts)
     {
         libriss* solver = (libriss*) riss;
+        riss_reset_conflict_map(solver); // make sure we do not store the conflict longer than necessary
         if (nOfConflicts == -1) { solver->solver->budgetOff(); }
         else { solver->solver->setConfBudget(nOfConflicts); }
 
@@ -263,8 +265,11 @@ extern "C" {
     {
         libriss* solver = (libriss*) riss;
         riss_build_conflict_map(solver);  // build map, if it has not been build already
-        const int v = lit > 0 ? (lit - 1) : (-lit - 1);
-        return solver->conflictMap[ v ]; // return the flag of the corrsponding variable
+
+        // negate the actual literal to transit from assumption to conflict
+        if (lit > 0) { lit = (lit - 1) * 2; }
+        else { lit = (-lit - 1) * 2 + 1; }
+        return solver->conflictMap[ lit ]; // return the flag of the corrsponding variable
     }
 
     /** give number of literals that are present in the conflict clause that has been produced by analyze_final
