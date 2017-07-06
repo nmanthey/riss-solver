@@ -649,10 +649,12 @@ bool Unhiding::unhideSimplify(bool borderIteration, bool& foundEE)
                             minPosition = j;
                         }
                         if (big.getArray(clause[j])[ currentPosition[j] ] != big.getArray(clause[j - 1])[ currentPosition[j - 1] ]) { allEqual = false; }
-                        else DOUT(
+                        else {
+                            DOUT(
                             if (config.opt_uhd_Debug > 2) {
                             cerr << "c [" << whileIteration << "] the two implied literals are equal (" << j << " vs " << j - 1 << ") [" << clause[j] << " vs " << clause[j - 1] << "]: " << big.getArray(clause[j])[ currentPosition[j] ] << " vs-1 " << big.getArray(clause[j - 1])[ currentPosition[j - 1] ] << endl;
                             });
+                        }
                     }
 
                     if (allEqual) {   // there is a commonly implied literal
