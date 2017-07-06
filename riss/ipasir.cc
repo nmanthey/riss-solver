@@ -34,6 +34,7 @@
 
 #include "ipasir.h"
 #include "riss/librissc.h" // include actual C-interface of Riss
+#include <stdlib.h>        // getenv
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,7 +59,9 @@ const char * ipasir_signature()
  */
 void * ipasir_init()
 {
-    return riss_init_configured("INCSOLVE:-init-act=3:-actStart=2048:INCSIMP"); // use riss with the configuration for incremental solving, and incremental simplification (after 50000 conflicts)
+    char* env_config = getenv("RISSCONFIG");
+    const char* rissconfig = env_config == 0 ? 0 : env_config; // old default config, possible buggy: INCSOLVE:-init-act=3:-actStart=2048:INCSIMP
+    return riss_init_configured(rissconfig); // use riss with the configuration for incremental solving, and incremental simplification (after 50000 conflicts)
 }
 
 /**
