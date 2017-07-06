@@ -47,6 +47,7 @@ CoreConfig::CoreConfig(const std::string& presetOptions)  // add new options her
 
     opt_refineConflict          (_cm, "refConflict",             "refine conflict clause after solving with assumptions", true,        optionListPtr),
     opt_refineConflictReverse   (_cm, "revRevC",                 "reverse new conflict clause after reverse minimization", false,       optionListPtr),
+    opt_prefetch_assumption     (_cm, "prefA",                   "check whether a later assumption is already falsified at each assumption decision (0=off,1=last,2=random,3=middle,4=remaining)", 0, IntRange(0, 4), optionListPtr),
     opt_earlyAssumptionConflict (_cm, "eac",                     "abort search as soon as assumtions conflict", false,       optionListPtr),
 
     opt_K                       (_cr, "K",                       "The constant used to force restart",                          0.8, DoubleRange(0, false, 1, false), optionListPtr),
@@ -272,6 +273,8 @@ CoreConfig::CoreConfig(const std::string& presetOptions)  // add new options her
     //
     // for incremental solving
     //
+    opt_savesearch      ("CORE -- INCREMENTAL", "incSaveState", "do not jump back to level 0 after search finished #NoAutoT", false                                                    , optionListPtr),
+    opt_assumprestart   ("CORE -- INCREMENTAL", "incRestartA", "do not jump back over assumptions during restart #NoAutoT", true                                                       , optionListPtr),
     resetActEvery       ("CORE -- INCREMENTAL", "incResAct", "when incrementally called, reset activity every X calls (0=off)  #NoAutoT",                    0, IntRange(0, INT32_MAX) , optionListPtr),
     resetPolEvery       ("CORE -- INCREMENTAL", "incResPol", "when incrementally called, reset polarities every X calls (0=off)  #NoAutoT",                  0, IntRange(0, INT32_MAX) , optionListPtr),
     intenseCleaningEvery("CORE -- INCREMENTAL", "incClean",  "when incrementally called, extra clean learnt data base every X calls (0=off)  #NoAutoT",      0, IntRange(0, INT32_MAX) , optionListPtr),

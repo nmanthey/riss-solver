@@ -47,6 +47,8 @@ class CoreConfig : public Config
     BoolOption opt_refineConflict;
     BoolOption opt_refineConflictReverse;
 
+    IntOption opt_prefetch_assumption;
+
     BoolOption opt_earlyAssumptionConflict;
 
     DoubleOption opt_K;
@@ -268,6 +270,8 @@ class CoreConfig : public Config
 //
 // for incremental solving
 //
+    BoolOption opt_savesearch;
+    BoolOption opt_assumprestart;
     IntOption resetActEvery;
     IntOption resetPolEvery;
     IntOption intenseCleaningEvery;

@@ -118,8 +118,13 @@ Solver::Solver(CoreConfig* externalConfig, const char* configName) :    // CoreC
     , propagation_budget(-1)
     , asynch_interrupt(false)
 
+    // IPASIR
     , terminationCallbackState(0)
     , terminationCallbackMethod(0)
+    , learnCallbackState(0)
+    , learnCallbackLimit(0)
+    , learnCallback(0)
+    , learnCallbackBuffer(0)
 
     // Online proof checking class
     , onlineDratChecker(config.opt_checkProofOnline != 0 ? new OnlineProofChecker(dratProof) : 0)
@@ -315,7 +320,8 @@ Solver::~Solver()
 {
     if (big != 0)         { big->BIG::~BIG(); delete big; big = 0; }   // clean up!
     if (coprocessor != 0) { delete coprocessor; coprocessor = 0; }
-    if (deleteConfig) { delete privateConfig; }
+    if (deleteConfig) { delete privateConfig; privateConfig = 0; }
+    if (learnCallbackBuffer != 0) { delete [] learnCallbackBuffer; learnCallbackBuffer = 0; }
 }
 
 
@@ -514,6 +520,174 @@ bool Solver::addClause(const Clause& ps)
     return true;
 }
 
+lbool Solver::integrateNewClause(vec<Lit>& clause)
+{
+    DOUT(if (config.opt_dbg) cerr << "c [local] add clause " << clause << " at level " << decisionLevel() << endl;);
+    DOUT(if (config.opt_dbg) cerr << "c [local] ok: " << ok << " trail: " << trail << endl;);
+
+    if (clause.size() == 0) {
+        ok = false;     // solver state is false
+        return l_False; // adding the empty clause results in an unsatisfiable formula
+    }
+
+    if (decisionLevel() == 0) {  // perform propagation if we are on level 0
+        return addClause_(clause) ? l_True : l_False;
+    }
+
+    // analyze the current clause
+    int satLits = 0, unsatLits = 0, undefLits = 0;
+
+    // make sure we have enough variables
+    Lit maxLit = clause[0];
+    for (int i = 0 ; i < clause.size(); ++ i) {
+        // make sure we have enough space
+        maxLit = clause[i] < maxLit ? maxLit : clause[i];
+        if (nVars() < var(maxLit)) {
+            const Var nv = newVar();
+        }
+        // examine the clause
+        lbool truthvalue = value(clause[i]);
+        if (truthvalue != l_False) {
+            Lit tmp = clause[undefLits + satLits]; clause[undefLits + satLits] = clause[i]; clause[i] = tmp;
+            undefLits = (truthvalue == l_Undef) ? undefLits + 1 : undefLits;
+            satLits = (truthvalue == l_True) ? satLits + 1 : satLits;
+        } else {
+            unsatLits ++;
+        }
+    }
+
+    DOUT(if (config.opt_dbg) cerr << "c [local] sat: " << satLits << " unsat: " << unsatLits << " undefLits: " << undefLits << endl;);
+
+    // clause is not satisfied, and not "free" enough
+    int backtrack_level = decisionLevel();
+    int highestLevelVars = 0;
+    if (undefLits + satLits < 2) {  // we need to do something to watch the clause safely
+        if (undefLits + satLits < 1) { // apply backtracking
+
+            DOUT(if (config.opt_dbg) {
+            cerr << "c [local] detailed2: ";
+            for (int i = 0 ; i < clause.size(); ++ i) {
+                    cerr << " " << clause[i] << "@" << level(var(clause[i])) << "t" << (value(clause[i]) == l_True) << "f" << (value(clause[i]) == l_False);
+                }
+                cerr << " " << endl;
+            });
+            int higehest_level = 0;
+            backtrack_level = -1;
+            for (int i = 0 ; i < clause.size(); ++ i) {
+                assert(value(clause[i]) == l_False && "all literals in the clause have to be unsatisfiable");
+                assert(higehest_level > backtrack_level && "some literals have to be undefined after backtracking");
+                if (level(var(clause[i])) > higehest_level) {                     // found new highest level in the clause
+                    DOUT(if (config.opt_dbg) cerr << "c " << clause[i] << " sets bt to " << backtrack_level << " and highest to " << level(var(clause[i])) << endl;);
+                    backtrack_level = higehest_level;                               // the other level is the new backtrack level
+                    higehest_level = level(var(clause[i]));                         // store new highest level
+                    Lit tmp = clause[0]; clause[0] = clause[i]; clause[i] = tmp;    // move highest level variable to front!
+                    highestLevelVars = 1;                                           // count variables for this level
+                } else if (level(var(clause[i])) > backtrack_level) {
+                    if (level(var(clause[i])) == higehest_level) {                 // found another variable of the highest level
+                        DOUT(if (config.opt_dbg) cerr << "c move literal " << clause[i] << "@" << level(var(clause[i])) << " to position " << highestLevelVars << endl;);
+                        Lit tmp = clause[highestLevelVars]; clause[highestLevelVars] = clause[i]; clause[i] = tmp;  // move highest level variable to front!
+                        highestLevelVars ++;      // and count
+                    } else {
+                        DOUT(if (config.opt_dbg) cerr << "c " << clause[i] << " updates bt from " << backtrack_level << " to " << level(var(clause[i])) << " highest: " << higehest_level << endl;);
+                        backtrack_level = level(var(clause[i]));
+                    }
+                }
+            }
+            for (int i = 1; i < clause.size(); ++ i) {                             // move literal of backtrack level forward
+                if (level(var(clause[i])) == backtrack_level) {
+                    const Lit tmp = clause[i]; clause[i] = clause[1]; clause[1] = tmp; // move the literal forward
+                    break;                                                             // stop looking for more variables
+                }
+            }
+        } else {
+            assert(value(clause[0]) != l_False && "shuffling above moved only free literal to front");
+            backtrack_level = 0;
+            for (int i = 1; i < clause.size(); ++ i) {           // find actual backtrack level
+                if (level(var(clause[i])) > backtrack_level) {
+                    backtrack_level = level(var(clause[i])) ;             // store level
+                    Lit tmp = clause[1]; clause[1] = clause[i]; clause[i] = tmp;  // move literal to front
+                }
+                assert(level(var(clause[1])) >= level(var(clause[i])) && "highest level on second position in clause");
+            }
+        }
+    }
+
+    // jump back (if necessary)
+    if (backtrack_level == -1) {  // cannot backtrack beyond level 0 -> clause cannot be added to the formula
+        assert(value(clause[0]) == l_False && "clause to be integrated is falsified");
+        ok = false;
+        return l_False;
+    }
+
+    DOUT(if (config.opt_dbg) cerr << "c [local] decisionLevel: " << decisionLevel() << " backtracklevel: " << backtrack_level << endl;);
+
+    cancelUntil(backtrack_level); // backtrack
+
+    DOUT(if (config.opt_dbg) {
+    cerr << "c [local] detailed2: ";
+    for (int i = 0 ; i < clause.size(); ++ i) {
+            cerr << " " << clause[i] << "@" << level(var(clause[i])) << "t" << (value(clause[i]) == l_True) << "f" << (value(clause[i]) == l_False);
+        }
+        cerr << " " << endl;
+    });
+
+    assert(value(clause[0]) != l_False && "first literal has to be free now");
+
+    // add the clause to the local data structures
+    CRef cr = CRef_Undef;                // for unit clauses
+    if (clause.size() > 1) {             // if clause is larger, add nicely to two-watched-literal structures
+        cr = ca.alloc(clause, false);
+        clauses.push(cr);
+        attachClause(cr);
+        DOUT(if (config.opt_dbg) cerr << "c new reason clause[ " << cr << " ]: " << ca[cr] << endl
+             << "c  1st lit: " << ca[cr][0] << " value: " << value(ca[cr][0]) << " level: " << level(var(ca[cr][0])) << endl
+             << "c  2nd lit: " << ca[cr][1] << " value: " << value(ca[cr][1]) << " level: " << level(var(ca[cr][1])) << endl;);
+    } else {
+        assert(decisionLevel() == 0 && "unit can only be added at decision level 0");
+    }
+
+    if ((undefLits == 1 && satLits == 0)                            // clause was unit before backjumping already
+            || (undefLits == 0 && satLits == 0 && highestLevelVars == 1)  // or clause became unit after backjumping
+       ) {
+        DOUT(if (config.opt_dbg) cerr << "c [local] enqueue unit " << clause[0] << endl;);
+        assert((clause.size() == 1 || cr != CRef_Undef) && "always enqueue with a reason");
+        uncheckedEnqueue(clause[0], cr);                              // then continue with unit propagation
+        assert((clause.size() <= 1 || level(var(clause[0])) == level(var(clause[1]))) && "always watch two literals of the same level (conflicting)");
+    } else {
+        DOUT(if (config.opt_dbg && clause.size() == 1) cerr << "c did not enqueue unit clause " << clause << " at level " << decisionLevel() << " satisfied: " << (value(clause[0]) == l_True) <<  " falsified: " << (value(clause[0]) == l_False) << endl;);
+    }
+
+    DOUT(if (config.opt_dbg) cerr << "c [local] succeeded at level " << decisionLevel() << endl;);
+    DOUT(if (config.opt_dbg) cerr << "c [local] trail " << trail << endl;);
+    DOUT(if (config.opt_dbg) cerr << "c [local] trail " << trail.size() << " prop_head: " << qhead << endl;);
+
+    return l_True;
+}
+
+int Solver::integrateAssumptions(vec<Lit>& nextAssumptions)
+{
+    // current level is 0, or there have not been assumptions in the last call to search
+    if (decisionLevel() == 0) { return 0; }  // value below would always be l_Undef
+
+    DOUT(if (config.opt_dbg) {
+    cerr << "c integrate assumptions: " << nextAssumptions << std::endl
+         << "c trail: " << trail << std::endl
+         << "c current assumptions: " << assumptions << std::endl;
+});
+
+    int keep = 0;
+    while (keep < nextAssumptions.size() && keep < assumptions.size()) {
+        // std::cerr << "c integrate [" << keep << "] " << nextAssumptions[keep] << " vs " << assumptions[keep] << " with value " << value( assumptions[keep] ) << std::endl;
+        const Lit& assumeLit = nextAssumptions[keep];
+        // check that assumptions match, the assumption is satisfied, and the trail matches as well (would have been set as decision on the given level)
+        if (assumeLit == assumptions[keep] && value(assumeLit) == l_True && level(var(assumeLit)) <= keep) { ++ keep; }
+        else { break; }
+    }
+
+    DOUT(if (config.opt_dbg) std::cerr << "integrate new assumptions " << nextAssumptions << " with old assumptions " << assumptions << " and trail " << trail << " on level " << decisionLevel() << ", jump back to " << keep << std::endl;);
+    cancelUntil(keep);
+    return keep;
+}
 
 void Solver::attachClause(CRef cr)
 {
@@ -2256,6 +2430,41 @@ lbool Solver::receiveInformation()
     return l_True;
 }
 
+Lit Solver::prefetchAssumption(const Lit p, int mode)
+{
+    const int start = decisionLevel() + 1;
+    const int end = assumptions.size() - 1;
+
+    // in case nothing is left
+    if (mode == 0 || end <= start) { return p; }
+
+    // check all assumptions
+    if (mode == 4) {
+        for (int i = start; i <= end; ++i) {
+            if (value(assumptions[i]) == l_False) { return assumptions[i]; }
+        }
+        return p;
+    }
+
+    // check a single assumption
+    Lit candidate = p;
+    const int diff = end - start;
+    // mode 1 to 3 act like a bloom filter
+    switch (mode) {
+    case 1: candidate = assumptions[ assumptions.size() - 1 ];
+        break;
+    case 2: candidate = assumptions[ start + rand() % (diff + 1) ]; // both start and end are valid indexes
+        break;
+    case 3: candidate = assumptions[ start + ((diff + 1) / 2) ];
+        break;
+    }
+    // check whether our candidate is falsified
+    if (value(candidate) == l_False) { return candidate; }
+
+    // if no failed assumption was found, return the default
+    return p;
+}
+
 Lit Solver::performSearchDecision(lbool& returnValue, vec<Lit>& tmp_Lits)
 {
     Lit next = lit_Undef;
@@ -2264,6 +2473,8 @@ Lit Solver::performSearchDecision(lbool& returnValue, vec<Lit>& tmp_Lits)
         while (decisionLevel() < assumptions.size()) {
             // Perform user provided assumption:
             Lit p = assumptions[decisionLevel()];
+
+            if (config.opt_prefetch_assumption != 0) { p = prefetchAssumption(p, config.opt_prefetch_assumption); }
             if (value(p) == l_True) {
                 // Dummy decision level: // do not have a dummy level here!!
                 DOUT(if (config.opt_printDecisions > 0) cerr << "c have dummy decision level for assumptions" << endl;);
@@ -2934,6 +3145,8 @@ bool Solver::handleRestarts(int& nof_conflicts, const int conflictC)
                         return false; // we found that we should not restart, because we have a (partial) model
                     }
                 }
+                // do not jump beyond assumptions, as those will never change
+                if (config.opt_assumprestart) { partialLevel = partialLevel < assumptions.size() ? assumptions.size() : partialLevel; }
                 cancelUntil(partialLevel);
                 return true;
 
@@ -2958,6 +3171,8 @@ bool Solver::handleRestarts(int& nof_conflicts, const int conflictC)
                             return false; // we found that we should not restart, because we have a (partial) model
                         }
                     }
+                    // do not jump beyond assumptions, as those will never change
+                    if (config.opt_assumprestart) { partialLevel = partialLevel < assumptions.size() ? assumptions.size() : partialLevel; }
                     cancelUntil(partialLevel);
                     return true;
                 }
@@ -3645,10 +3860,11 @@ lbool Solver::solve_(const SolveCallType preprocessCall)
     DOUT(if (config.opt_learn_debug) {
     cerr << "c solver state after preprocessing" << endl;
     cerr << "c start solving with " << nVars() << " vars, " << nClauses() << " clauses and " << nLearnts() << " learnts decision vars: " << order_heap.size() << endl;
-        cerr << "c units: " ; for (int i = 0 ; i < trail.size(); ++ i) { cerr << " " << trail[i]; } cerr << endl;
+        cerr << "c lits until level " << decisionLevel() << ": " ; for (int i = 0 ; i < trail.size(); ++ i) { cerr << " " << trail[i]; } cerr << endl;
         cerr << "c clauses: " << endl; for (int i = 0 ; i < clauses.size(); ++ i) { cerr << "c [" << clauses[i] << "]m: " << ca[clauses[i]].mark() << " == " << ca[clauses[i]] << endl; }
         cerr << "c assumptions: "; for (int i = 0 ; i < assumptions.size(); ++ i) { cerr << " " << assumptions[i]; } cerr << endl;
         cerr << "c solve with " << config.presetConfig() << endl;
+        cerr << "c current decision level: " << decisionLevel() << endl;
     });
 
     //
@@ -3710,11 +3926,17 @@ lbool Solver::solve_(const SolveCallType preprocessCall)
         status = inprocess(status);
     }
 
-    if (status == l_False && config.opt_refineConflict) { refineFinalConflict(); }  // minimize final conflict clause
+    if (status == l_False && config.opt_refineConflict) {
+        DOUT(if (config.opt_learn_debug) cerr << "c run refine final conflict" << endl;);
+        refineFinalConflict();
+    }  // minimize final conflict clause
 
     totalTime.stop();
 
-    // cerr << "c finish solving with " << nVars() << " vars, " << nClauses() << " clauses and " << nLearnts() << " learnts and status " << (status == l_Undef ? "UNKNOWN" : ( status == l_True ? "SAT" : "UNSAT" ) ) << endl;
+    DOUT(if (config.opt_learn_debug) {
+    cerr << "c finish solving with " << nVars() << " vars, " << nClauses() << " clauses and " << nLearnts() << " learnts and status " << (status == l_Undef ? "UNKNOWN" : (status == l_True ? "SAT" : "UNSAT")) << " and conflict " << conflict << endl;
+        if (status == l_False) { cerr << "c conflict clause: " << conflict << endl; }
+    });
 
     //
     // print statistic output
@@ -3790,11 +4012,13 @@ lbool Solver::solve_(const SolveCallType preprocessCall)
 
     } else if (status == l_False && conflict.size() == 0) {
         ok = false;
+    } else if (status == l_False) {
+        DOUT(if (config.opt_learn_debug) cerr << "c stop search with conflict <" << conflict << ">" << endl;);
     }
 
     assert((status != l_Undef || !withinBudget() || asynch_interrupt) && "unknown should not happen here if there was no interrupt");
 
-    cancelUntil(0);
+    if (!config.opt_savesearch || config.opt_refineConflict) { cancelUntil(0); }
 
     // cerr << "c finish solving with " << nVars() << " vars, " << nClauses() << " clauses and " << nLearnts() << " learnts and status " << (status == l_Undef ? "UNKNOWN" : ( status == l_True ? "SAT" : "UNSAT" ) ) << endl;
 
@@ -3840,6 +4064,7 @@ void Solver::refineFinalConflict()
             conflict[j--] = tmp;         // last time j is used in loop, hence increase afterwards
         }
     }
+    cancelUntil(0);    // make sure we are on level 0 again
 }
 
 //=================================================================================================
@@ -5046,6 +5271,8 @@ lbool Solver::preprocess()
     lbool status = l_Undef;
     // restart, triggered by the solver
     // if( coprocessor == 0 && useCoprocessor) coprocessor = new Coprocessor::Preprocessor(this); // use number of threads from coprocessor
+    if (decisionLevel() != 0) { return status; }  // might jump back to L 0 once in a while
+
     if (coprocessor != 0 && useCoprocessorPP) {
         if (processOtfss(otfss)) { return l_False ; }    // make sure we work on the correct clauses still (collected before)
         preprocessCalls++;
@@ -5191,6 +5418,7 @@ lbool Solver::handleMultipleUnits(vec< Lit >& learnt_clause)
     for (int i = 0; i < learnt_clause.size(); i++) {
         addCommentToProof("learnt unit");
         addUnitToProof(learnt_clause[i]);
+        IPASIR_shareUnit(learnt_clause[i]);
     }
     // store learning stats!
     totalLearnedClauses += learnt_clause.size(); sumLearnedClauseSize += learnt_clause.size(); sumLearnedClauseLBD += learnt_clause.size();
@@ -5225,6 +5453,7 @@ lbool Solver::handleLearntClause(vec< Lit >& learnt_clause, bool backtrackedBeyo
     addCommentToProof("learnt clause");
     // assert( !hasComplementary(learnt_clause) && !hasDuplicates(learnt_clause) && "do not have duplicate literals in the learned clause" );
     addToProof(learnt_clause);
+    IPASIR_shareClause(learnt_clause);
     // assert( !hasComplementary(learnt_clause) && !hasDuplicates(learnt_clause) && "do not have duplicate literals in the learned clause" );
     // store learning stats!
     totalLearnedClauses ++ ; sumLearnedClauseSize += learnt_clause.size(); sumLearnedClauseLBD += nblevels;

@@ -159,6 +159,23 @@ class Solver
     /// change the passed vector 'ps'.
     void    addInputClause_(vec<Lit>& ps);                      /// Add a clause to the online proof checker
 
+    /** integrate the given clause into the current state of the SAT solver
+     *  @param clause vector with the literals of the clause
+     *  @return l_False, if adding the clause turns the formula of the solver unsatisfiable, l_True, if addig the clause did not fail
+     */
+    lbool   integrateNewClause(vec<Lit>& clause);
+
+    /** find and keep common prefix for given assumptions and current assumptions, adjusts backtracking level accordingly to enusre safe continue of search
+     *
+     * If there have not been assumptions before, or the current decision level is 0, 0 is returned immediately.
+     *
+     *  @param nextAssumptions ordered list of assumption literals that should be used for the next solve iteration
+     *                         Note: assumptions will be reordered according to current search state
+     *  @return number of assumptions that can be kept (assumptions that are same in this vector and in currently set assumptions)
+     *                     Note: equals the search decision level that remains in the solver state
+     */
+    int     integrateAssumptions(vec<Lit>& nextAssumptions);
+
     // Solving:
     //
     bool    simplify();                             /// Removes already satisfied clauses.
@@ -877,7 +894,9 @@ class Solver
 
     // Misc:
     //
+  public:
     int      decisionLevel()      const;     // Gives the current decisionlevel.
+  protected:
     uint32_t abstractLevel(Var x) const;     // Used to represent an abstraction of sets of decision levels.
     ReasonStruct& reason(Var x);
     const ReasonStruct& reason(Var x) const ;
@@ -893,6 +912,38 @@ class Solver
     int (*terminationCallbackMethod)(void* terminationState);  // pointer to the callback method
 
 
+    void* learnCallbackState;
+    int learnCallbackLimit;
+    void (*learnCallback)(void * state, int * clause);
+    int *learnCallbackBuffer;
+
+    /** send a clause via the learn call back
+     * @param clauseToShare clause to be shared
+     */
+    void IPASIR_shareClause(const vec<Lit>& clauseToShare)
+    {
+        if (learnCallback != 0 && clauseToShare.size() <= learnCallbackLimit) {
+            for (int i = 0; i < clauseToShare.size(); i++) {
+                Lit lit = clauseToShare[i];
+                learnCallbackBuffer[i] = sign(lit) ? -(var(lit) + 1) : (var(lit) + 1);
+            }
+            learnCallbackBuffer[clauseToShare.size()] = 0;
+            learnCallback(learnCallbackState, learnCallbackBuffer);
+        }
+    }
+
+    /** send a clause via the learn call back
+     * @param clauseToShare clause to be shared
+     */
+    void IPASIR_shareUnit(const Lit clauseToShare)
+    {
+        if (learnCallback != 0 && 1 <= learnCallbackLimit) {
+            learnCallbackBuffer[0] = sign(clauseToShare) ? -(var(clauseToShare) + 1) : (var(clauseToShare) + 1);
+            learnCallbackBuffer[1] = 0;
+            learnCallback(learnCallbackState, learnCallbackBuffer);
+        }
+    }
+
   public:
     /** set a callback to a function that should be frequently tested by the solver to be noticed that the current search should be interrupted
      * Note: the state has to be used as argument when calling the callback
@@ -900,6 +951,13 @@ class Solver
      * @param terminationCallbackMethod pointer to an external callback method that indicates termination (return value is != 0 to terminate)
      */
     void setTerminationCallback(void* terminationState, int (*terminationCallback)(void*));
+
+    /** set a call back function in the solver to call a function with each learned clause (less than a certain size)
+     * @param state pointer to an external state object that is used in the termination callback
+     * @param max_length max length of clauses to be shared
+     * @param learn function that will process the shared learned clause
+     */
+    void setLearnCallback(void * state, int maxLength, void (*learn)(void * state, int * clause));
 
     /// use the set preprocessor (if present) to simplify the current formula
     lbool preprocess();
@@ -1222,6 +1280,13 @@ class Solver
 
     /** setup reverse minimizatoin, if not done already */
     void initReverseMinimitaion();
+
+    /** check whether an assumption literal that is left is already falsified
+     * @param p literal that is chose based on the assumption list
+     * @param mode (0=off,1=last,2=random,3=middle,4=all)
+     * @return p, if no falsified literal is found, or an assumption literal that is now falsified
+     */
+    Lit prefetchAssumption(const Lit p, int mode);
 
     /** reduce the learned clause by replacing pairs of literals with their previously created extended resolution literal
      * @param lbd current lbd value of the given clause
@@ -1845,6 +1910,15 @@ inline void     Solver::setTerminationCallback(void* terminationState, int (*ter
 {
     terminationCallbackState  = terminationState;
     terminationCallbackMethod = terminationCallback;
+}
+
+inline void     Solver::setLearnCallback(void * state, int maxLength, void (*learn)(void * state, int * clause))
+{
+    learnCallbackState = state;
+    learnCallbackLimit = maxLength;
+    if (learnCallbackBuffer != 0) { delete [] learnCallbackBuffer; }
+    learnCallbackBuffer = new int[maxLength + 2];
+    learnCallback = learn;
 }
 
 inline
