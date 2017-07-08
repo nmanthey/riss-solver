@@ -60,7 +60,7 @@ do
 
     # make all
     echo "$build_type build"
-    cmake -DCMAKE_BUILD_TYPE=$build_type ..
+    cmake -DCMAKE_BUILD_TYPE=$build_type -DDRATPROOF=OFF ..
     make all -j $(nproc)
     # necessary for parallel builds
     pid=$!
@@ -102,6 +102,7 @@ do
     echo "Start fuzzchecking"
     n_runs=150
 
+    TMPFILE=$(mktemp)
     # check each solver
     for s in "${solver[@]}"
     do
@@ -113,7 +114,7 @@ do
         chmod +x solver-wrapper.sh
 
         # run fuzzcheck as background process and wait for it
-        ./fuzzcheck.sh $repo_dir/tools/checker/solver-wrapper.sh $n_runs > /dev/null 2> /dev/null &
+        ./fuzzcheck.sh $repo_dir/tools/checker/solver-wrapper.sh $n_runs &> $TMPFILE &
         wait $!
 
         # count lines of log for this run (in this file the name of the bugs-files can be found)
@@ -121,15 +122,17 @@ do
         bugs=`cat runcnfuzz-$!.log | wc -l`
 
         if ! [ $bugs -eq 1 ]
-            then
-                if [ "$error_msg" == "" ]; then
-                    error_msg="fuzzer found bug for: $s ($build_type)"
-                else
-                    error_msg="$error_msg, $s ($build_type)"
-                fi
+        then
+            if [ "$error_msg" == "" ]; then
+                error_msg="fuzzer found bug for: $s ($build_type)"
+            else
+                error_msg="$error_msg, $s ($build_type)"
+            fi
+            cat $TMPFILE
             exitcode=1
         fi
     done
+    rm -f "$TMPFILE"
 
     # display error message for all fuzz-runs
     echo $error_msg

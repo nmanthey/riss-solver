@@ -1,0 +1,37 @@
+language: cpp
+dist: trusty
+compiler: g++
+sudo: required
+
+# Riss requires cmake version 2.8.8 or higher, Travis might come with 2.8.7
+#addons:
+#  apt:
+#    sources:
+#      - ubuntu-toolchain-r-test
+#      - george-edison55-precise-backports
+#    packages:
+#      - cmake-data
+#      - cmake
+#      - g++-5
+
+before_install:
+  - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+  - sudo apt-get update -q
+  - sudo apt-get remove gcc g++
+  - sudo apt-get install g++-5 gcc-5 -y
+  - sudo apt-get install picosat
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 60 --slave /usr/bin/g++ g++ /usr/bin/g++-5
+
+# install a recent version of astyle
+before_script:
+  - pwd
+  - ls -l ..
+  - pushd .
+  - cd $(mktemp -d) && wget -O astyle.tar.gz "https://downloads.sourceforge.net/project/astyle/astyle/astyle%203.0.1/astyle_3.0.1_linux.tar.gz" && tar xzf astyle.tar.gz && cd astyle/build/gcc/ && make release && export PATH=$(pwd)/bin:$PATH
+  - popd
+
+# run the typical ci checks, run code style check first
+script:
+  - which g++ && which gcc && g++ -dumpversion
+  - regression/test-codestyle.sh
+  - scripts/ci.sh
