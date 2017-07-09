@@ -6,7 +6,7 @@
 set -e
 
 # get all files
-FILES=$(find \( -path ./tools -o -path ./build -o -path ./release \) -prune -o \( -name '*.cc' -or -name '*.c' -or -name '*.h' \))
+FILES=$(find \( -path ./tools -o -path ./build -o -path ./release -o -path ./coverity-dir \) -prune -o \( -name '*.cc' -or -name '*.c' -or -name '*.h' \))
 
 # run astyle with dry-run on these files
 RET=0
