@@ -1672,7 +1672,8 @@ void Solver::analyzeFinal(Lit p, vec<Lit>& out_conflict)
     varFlags[var(p)].seen = 0;
 }
 
-void Solver::analyzeFinal(CRef conflictingClause, vec<Lit>& out_conflict)
+
+void Solver::analyzeFinal(const Solver::ReasonStruct& conflictingClause, vec< Lit >& out_conflict, const Lit otherLit)
 {
     out_conflict.clear();
 
@@ -1680,11 +1681,20 @@ void Solver::analyzeFinal(CRef conflictingClause, vec<Lit>& out_conflict)
         return;
     }
 
-    // saw all literals of this clause (if they are not top level)
-    const Clause& c = ca[conflictingClause];
-    for (int i = 0 ; i < c.size(); ++ i) {
-        if (level(var(c[i])) > 0) {
-            varFlags[var(c[i])].seen = 1;
+    if (!conflictingClause.isBinaryClause()) {
+        // saw all literals of this clause (if they are not top level)
+        const Clause& c = ca[conflictingClause.getReasonC()];
+        for (int i = 0 ; i < c.size(); ++ i) {
+            if (level(var(c[i])) > 0) {
+                varFlags[var(c[i])].seen = 1;
+            }
+        }
+    } else {
+        for (int i = 0 ; i < 2; ++ i) {
+            const Var v = var((i == 0 ? otherLit : conflictingClause.getReasonL()));
+            if (level(v) > 0) {
+                varFlags[v].seen = 1;
+            }
         }
     }
 
@@ -1715,10 +1725,20 @@ void Solver::analyzeFinal(CRef conflictingClause, vec<Lit>& out_conflict)
         }
     }
 
-    // reset all seen flags for the literals of the clause
-    for (int i = 0 ; i < c.size(); ++ i) {
-        if (level(var(c[i])) > 0) {
-            varFlags[var(c[i])].seen = 0;
+    if (!conflictingClause.isBinaryClause()) {
+        // saw all literals of this clause (if they are not top level)
+        const Clause& c = ca[conflictingClause.getReasonC()];
+        for (int i = 0 ; i < c.size(); ++ i) {
+            if (level(var(c[i])) > 0) {
+                varFlags[var(c[i])].seen = 0;
+            }
+        }
+    } else {
+        for (int i = 0 ; i < 2; ++ i) {
+            const Var v = var((i == 0 ? otherLit : conflictingClause.getReasonL()));
+            if (level(v) > 0) {
+                varFlags[v].seen = 0;
+            }
         }
     }
 }
@@ -2600,7 +2620,7 @@ lbool Solver::search(int nof_conflicts)
 
             if (earlyAssumptionConflict && decisionLevel() < assumptions.size()) {
                 // if used in incremental mode, abort as soon as we found a set of inconsistent assumptions (not only when another assumption cannot be set as decision)
-                analyzeFinal(confl, conflict);
+                analyzeFinal(ReasonStruct(confl), conflict);
                 return l_False;
             }
 

@@ -829,7 +829,7 @@ class Solver
 
     int      analyze(CRef confl, vec< Lit >& out_learnt, int& out_btlevel, unsigned int& lbd, unsigned& dependencyLevel);               // // (bt = backtrack, return is number of unit clauses in out_learnt. if 0, treat as usual!)
     void     analyzeFinal(Lit p, vec<Lit>& out_conflict);                              // COULD THIS BE IMPLEMENTED BY THE ORDINARIY "analyze" BY SOME REASONABLE GENERALIZATION?
-    void     analyzeFinal(CRef conflictingClause, vec<Lit>& out_conflict);
+    void     analyzeFinal(const Solver::ReasonStruct& conflictingClause, vec< Lit >& out_conflict, const Lit otherLit = lit_Undef); // in case of binary conflict, set the other lit!
 
     bool     litRedundant(Lit p, uint32_t abstract_levels, unsigned& dependencyLevel);                           // (helper method for 'analyze()')
 
