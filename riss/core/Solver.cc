@@ -3798,6 +3798,7 @@ void Solver::dumpAndExit(const char* filename)
 
     if (!okay()) {     // unsat
         fprintf(f, "p cnf 0 1\n0\n"); // print the empty clause
+        fclose(f);
         return;
     }
 
