@@ -3788,7 +3788,7 @@ void Solver::applyConfiguration()
     sumLBD = 0;
 }
 
-void Solver::dumpAndExit(const char* filename)
+void Solver::dumpAndExit(const char* filename, bool doExit, bool fullState)
 {
     FILE* f = fopen(filename, "w");
     if (f == nullptr) {
@@ -3810,10 +3810,20 @@ void Solver::dumpAndExit(const char* filename)
         } else { break; }
     }
     // print header, if activated
-    fprintf(f, "p cnf %u %i\n", (nVars()), level0 + clauses.size());
+    if (fullState) {
+        int nCls = trail_lim.size() == 0 ? 0 : trail_lim[0];
+        for (int i = 0; i < clauses.size(); ++i) {
+            nCls = ca[ clauses[i] ].mark() ? nCls : nCls + 1;
+        }
+        for (int i = 0; i < learnts.size(); ++i) {
+            nCls = ca[ learnts[i] ].mark() ? nCls : nCls + 1;
+        }
+        fprintf(f, "p cnf %u %i\n", (nVars()), nCls);
+    } else { fprintf(f, "p cnf %u %i\n", (nVars()), level0 + clauses.size()); }
 
     // print assignments
-    for (int i = 0; i < trail.size(); ++i) {
+    int relevantTrailLits = fullState ? (trail_lim.size() == 0 ? 0 : trail_lim[0]) : trail.size();
+    for (int i = 0; i < relevantTrailLits; ++i) {
         if (level(var(trail[i])) == 0) {
             stringstream s;
             s << trail[i];
@@ -3821,13 +3831,25 @@ void Solver::dumpAndExit(const char* filename)
         } else { break; } // stop after first level
     }
     // print clauses
-    for (int i = 0; i < clauses.size(); ++i) {
-        stringstream s;
-        s << ca[ clauses[i] ];
-        fprintf(f, "%s 0\n", s.str().c_str());
+    if (fullState) {
+        for (int p = 0 ; p < 2; ++p) {
+            vec<CRef>& clauseList = p == 0 ? clauses : learnts;
+            for (int i = 0; i < clauseList.size(); ++i) {
+                if (ca[clauseList[i]].mark()) { continue; }
+                stringstream s;
+                s << ca[ clauseList[i] ];
+                fprintf(f, "%s 0\n", s.str().c_str());
+            }
+        }
+    } else {
+        for (int i = 0; i < clauses.size(); ++i) {
+            stringstream s;
+            s << ca[ clauses[i] ];
+            fprintf(f, "%s 0\n", s.str().c_str());
+        }
     }
     fclose(f);
-    exit(1);
+    if (doExit) { exit(1); }
 }
 
 // NOTE: assumptions passed in member-variable 'assumptions'.

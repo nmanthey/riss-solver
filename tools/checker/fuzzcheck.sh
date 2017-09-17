@@ -19,6 +19,7 @@ echo "[runcnfuzz] running $prg"
 echo "[runcnfuzz] logging $log"
 echo "run $1 $2" > $log
 echo "[runcnfuzz] run with pid $$"
+echo "[runcnfuzz] started at $(date)"
 i=0
 
 # set limit for number of instances to be solved

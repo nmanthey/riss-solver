@@ -192,7 +192,7 @@ class Solver
     void    toDimacs(FILE* f, Clause& c, vec<Var>& map, Var& max);
     void printLit(Lit l);
     void printClause(CRef c);
-    void dumpAndExit(const char* filename);  // print the current formula without assumptions (p line, trail, clauses)
+    void dumpAndExit(const char* filename, bool doExit = true, bool fullState = false);  // print the current formula without assumptions (p line, trail, clauses)
 
     // Convenience versions of 'toDimacs()':
     void    toDimacs(const char* file);
@@ -2270,6 +2270,40 @@ inline void Solver::addToProof(const T& clause, const bool deleteFromProof, Lit 
         for (int i = 0 ; i < clause.size(); ++i) { exportedClause.push_(compression.exportLit(clause[i])); }
         remLit = compression.exportLit(remLit);
     }
+
+    // use an external tool to check the current addition?
+    #ifndef NDEBUG
+    if ((const char*)config.opt_external_check != nullptr) {
+
+        char formulaFileName[L_tmpnam];
+        if (!tmpnam(formulaFileName)) {
+            throw "cannot allocate temporary file for dump formula";
+        }
+        // write current CNF to this file
+        dumpAndExit(formulaFileName, false, true); // do not exit, write full state
+        char proofFileName[L_tmpnam];
+        if (! tmpnam(proofFileName)) {
+            throw "cannot allocate temporary file for dump proof";
+        }
+
+        FILE* f = fopen(proofFileName, "w");
+        if (f == nullptr) {
+            fprintf(stderr, "could not open proof file %s\n", proofFileName), exit(1);
+        }
+        stringstream s;
+        s << clause;
+        fprintf(f, "%s 0\n", s.str().c_str());
+
+        std::cerr << "c to check adding current clause, call " << (const char*)config.opt_external_check << " " << formulaFileName << " " << proofFileName << std::endl;
+        string toExecute = string((const char*)config.opt_external_check) + " "
+                           + string(formulaFileName) + " "
+                           + string(proofFileName);
+        int returnCode = system(toExecute.c_str());
+        std::cerr << "c finished with " << returnCode << std::endl;
+        assert(returnCode == 0 && "checking new clause on current state has to go right");
+        // exit(6); // for debugging stop here for now
+    }
+    #endif
 
     if (communication != 0) {  // if the solver is part of a portfolio, then produce a global proof!
 //       if( deleteFromProof ) std::cerr << "c [" << communication->getID() << "] remove clause " << clause << " to proof" << std::endl;
