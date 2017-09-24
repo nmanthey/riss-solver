@@ -1635,12 +1635,12 @@ bool Solver::litRedundant(Riss::Lit p, uint32_t abstract_levels, unsigned int& d
 void Solver::analyzeFinal(Lit p, vec<Lit>& out_conflict)
 {
     out_conflict.clear();
+    out_conflict.push(p);
 
     if (decisionLevel() == 0) {
         return;
     }
 
-    out_conflict.push(p);
     varFlags[var(p)].seen = 1;
 
     for (int i = trail.size() - 1; i >= trail_lim[0]; i--) {
