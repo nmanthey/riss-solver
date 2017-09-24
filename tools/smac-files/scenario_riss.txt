@@ -1,0 +1,10 @@
+algo = python -u ./target_algorithm/scripts/SATCSSCWrapper.py --mem-limit 1024 --script ./target_algorithm/riss-python/rissWrapper.py 
+paramfile = ./target_algorithm/riss-python/riss.pcs
+execdir = .
+deterministic = 0
+run_obj = runtime
+overall_obj = PAR10
+cutoff_time = 5
+wallclock-limit = 180
+instance_file = instances.txt
+feature_file = features.txt
