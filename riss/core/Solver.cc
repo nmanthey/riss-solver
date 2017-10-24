@@ -2871,7 +2871,7 @@ Solver::EnumerationClient::processCurrentModel(Lit& nextDecision)
     // add blocking clause to this solver without disturbing its search too much
     if (!solver->useNaiveBacktracking) {
         if (integrateBlockingClause) {
-            bool moreModelsPossible = integrateClause(blockingClause, maxLevel, max2Level);
+            CRef moreModelsPossible = integrateClause(blockingClause, maxLevel, max2Level);
             if (moreModelsPossible == CRef_Error) {
                 cerr << "c stop after client found all models" << endl;
                 master->notifyReachedAllModels();

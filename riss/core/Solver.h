@@ -1037,7 +1037,7 @@ class Solver
     template <class T>
     bool checkClauseDRAT(const T& clause) { return true; }
     template <class T>
-    void proofHasClause(const T& clause) { return true; }
+    bool proofHasClause(const T& clause) { return true; }
   public:
     lbool checkProof() const { return l_Undef; } // if online checker is used, return whether the current proof is valid
   protected:

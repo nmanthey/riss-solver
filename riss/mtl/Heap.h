@@ -102,7 +102,7 @@ class Heap
     }
 
     /** copy data, but use other compare object (might contain pointer to data) */
-    void reinitializeFrom(Heap& copy, Comp c) const
+    void reinitializeFrom(Heap& copy, Comp c)
     {
         lt = c;
         copy.heap.copyTo(heap);
