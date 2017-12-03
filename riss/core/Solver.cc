@@ -1815,6 +1815,11 @@ CRef Solver::propagate(bool duringAddingClauses)
     CRef    confl     = CRef_Undef;
     int     num_props = 0;
     watches.cleanAll(); clssToBump.clear();
+
+    const bool no_long_conflict = !config.opt_long_conflict;
+    const bool update_lbd = config.opt_update_lbd == 0;
+    const bool share_clauses = sharingTimePoint == 1 && communication != 0;
+
     while (qhead < trail.size()) {
         Lit            p   = trail[qhead++];     // 'p' is enqueued fact to propagate.
         DOUT(if (config.opt_learn_debug) cerr << "c propagate literal " << p << endl;);
@@ -1830,7 +1835,7 @@ CRef Solver::propagate(bool duringAddingClauses)
                 assert(ca[ i->cref() ].size() == 2 && "in this list there can only be binary clauses");
                 DOUT(if (config.opt_learn_debug) cerr << "c checked binary clause " << ca[i->cref() ] << " with implied literal having value " << (value(imp)) << endl;);
                 if (value(imp) == l_False) {
-                    if (!config.opt_long_conflict) {  // stop on the first conflict we see?
+                    if (no_long_conflict) {  // stop on the first conflict we see?
                         confl = i->cref();              // store the conflict
                         while (i < end) { *j++ = *i++; }    // move the remaining elements forward
                         ws.shrink_(i - j);              // remove all duplciate clauses
@@ -1888,7 +1893,7 @@ CRef Solver::propagate(bool duringAddingClauses)
 
             // Did not find watch -- clause is unit under assignment:
             *j++ = w;
-            if (sharingTimePoint == 1 && (c.learnt() || c.isCoreClause()) && !c.wasPropagated()) {  // share clauses only, if they are propagated (see Simon&Audemard SAT 2014)
+            if (share_clauses && (c.learnt() || c.isCoreClause()) && !c.wasPropagated()) {  // share clauses only, if they are propagated (see Simon&Audemard SAT 2014)
                 #ifdef PCASSO
                 updateSleep(&c, c.size(), c.getPTLevel());  // share clause including level information
                 #else
@@ -1909,7 +1914,7 @@ CRef Solver::propagate(bool duringAddingClauses)
 
                 // if( config.opt_printLhbr ) cerr << "c final common dominator: " << commonDominator << endl;
 
-                if (c.mark() == 0  && config.opt_update_lbd == 0) { // if LHBR did not remove this clause
+                if (update_lbd && c.mark() == 0) { // if LHBR did not remove this clause
                     int newLbd = computeLBD(c, c.size());
                     if (newLbd < c.lbd() || config.opt_lbd_inc) {  // improve the LBD (either LBD decreased,or option is set)
                         if (c.lbd() <= searchconfiguration.lbLBDFrozenClause) {
