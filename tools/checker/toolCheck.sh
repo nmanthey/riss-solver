@@ -2,9 +2,9 @@ rm -f /tmp/verify_$$.cnf
 
 #echo "run $1 with $2" >> tmp.dat
 
-timeout 30 $1 $2 > /tmp/verify_$$.cnf 2> /tmp/verify2_$$.cnf;
+timeout 10 $1 $2 > /tmp/verify_$$.cnf 2> /tmp/verify2_$$.cnf;
 status=$?
-sleep 0.01
+# sleep 0.01
 
 #echo "finish with state= $status" >> tmp.dat
 

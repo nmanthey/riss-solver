@@ -400,14 +400,16 @@ bool OnlineProofChecker::removeClause(const T& cls)
     if (cls.size() == 1) {
         const Lit l = cls[0];
         int i = 0;
-        for (; 0 < unitClauses.size(); ++ i) {
+        bool found = false;
+        for (; i < unitClauses.size(); ++ i) {
             if (unitClauses[i] == l) {
                 unitClauses[i] = unitClauses[ unitClauses.size() - 1 ];
                 unitClauses.pop();
+                found = true;
                 break; // remove only once!
             }
         }
-        if (i == unitClauses.size()) {
+        if (!found) {
             assert(false && "the unit clause should be inside the vector of units");
             return false;
         }
@@ -675,7 +677,9 @@ bool OnlineProofChecker::addClause(const vec< Lit >& cls, bool checkOnly)
         }
         attachClause(ref);
         clauses.push(ref);
-    } else { unitClauses.push(cls[0]); }
+    } else {
+        unitClauses.push(cls[0]);
+    }
     if (verbose > 1) { std::cerr << "c [DRAT-OTFC] added the clause " << cls <<  std::endl; }
     return true;
 }

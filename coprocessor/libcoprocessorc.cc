@@ -94,7 +94,7 @@ extern "C" {
             return sign(l) ? (-var(l) - 1) : (var(l) + 1);
         }
 
-        if (cp3->outputCls >= cp3->solver->trail.size() + cp3->solver->clauses.size()) { return 2 << 31; }  // undefined behavior!
+        if (cp3->outputCls >= cp3->solver->trail.size() + cp3->solver->clauses.size()) { return INT32_MAX; }  // undefined behavior!
 
         // reading the clauses - jumping over the trail
         const Clause& c = cp3->solver->ca[  cp3->solver->clauses[cp3->outputCls - cp3->solver->trail.size()] ];

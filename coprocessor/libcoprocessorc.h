@@ -71,7 +71,7 @@ extern "C" {
     /** there is another literal inside the sat solver */
     extern int CPhasNextOutputLit(void* preprocessor);
 
-    /** give the actual next literal */
+    /** give the actual next literal, returns INT32_MAX if there is no more output literal*/
     extern int CPnextOutputLit(void* preprocessor);
 
     /** start output from the beginning */
