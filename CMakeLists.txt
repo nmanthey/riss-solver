@@ -52,6 +52,7 @@ endif()
 option(DRATPROOF       "Produce DRAFT-proofs (disabled by default)" OFF)
 option(STATIC_BINARIES "Build fully statically linked binaries" ON)
 option(WARNINGS        "Set verbose warning flags" ON)
+option(PROFILING       "Compile for gprof profiling" OFF)
 option(ERROR           "Turn warnings into errors" OFF)
 option(QUIET           "Disable all #warnings" OFF)
 
@@ -59,6 +60,7 @@ option(QUIET           "Disable all #warnings" OFF)
 message(STATUS "Build type ${CMAKE_BUILD_TYPE}")
 message(STATUS "Static binaries ${STATIC_BINARIES}")
 message(STATUS "Verbose warnings ${WARNINGS}")
+message(STATUS "Compile for gprof profiling ${PROFILING}")
 message(STATUS "Quiet ${QUIET}")
 
 # Output directory definitions
@@ -83,7 +85,7 @@ if(STATIC_BINARIES)
 endif()
 
 # tuning for release builds
-if(CMAKE_BUILD_TYPE STREQUAL "Release" AND CMAKE_COMPILER_IS_GNUCXX)
+if(CMAKE_BUILD_TYPE STREQUAL "Release" AND CMAKE_COMPILER_IS_GNUCXX AND NOT PROFILING)
   set(CMAKE_EXE_LINKER_FLAGS    "${CMAKE_EXE_LINKER_FLAGS} -s")  # strip binary
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -s")  # strip shared libs
 endif()
@@ -119,8 +121,13 @@ if(CMAKE_COMPILER_IS_GNUCXX)
                     "-Wno-sign-compare -Wno-parentheses -Wno-delete-non-virtual-dtor")
    endif()
    if(QUIET)
-      message(STATUS "disable #warnings")
+     message(STATUS "disable #warnings")
      add_definitions("-Wno-cpp")
+   endif()
+   if(PROFILING)
+     message(STATUS "enable profiling")
+     add_definitions("-pg -O1")
+     SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -pg -O1" )
    endif()
 endif()
 
