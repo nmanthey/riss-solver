@@ -9,6 +9,11 @@ All tools in this package are highly configurable. For a simple comparison, most
 techniques are disabled by default. Hence, you should specify options to use. For
 both Riss and Coprocessor, using -config=Riss427 is a fair starting point.
 
+## Getting Started
+
+For a quick example on how to retrieve, build and use the solver on a Linux
+machine, have a look at doc/TUTORIAL.md!
+
 ## Components
 
 This software package contains the SAT solver Riss, and might contain related 
