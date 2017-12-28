@@ -16,19 +16,19 @@ function(git_signature)
   # message(STATUS "GIT_SIGNATURE_DESTINATION:  ${GIT_SIGNATURE_DESTINATION}")
   # message(STATUS "GIT_SIGNATURE_SCRIPT:       ${GIT_SIGNATURE_SCRIPT}")
 
+
+  set_source_files_properties(${GIT_SIGNATURE_DESTINATION} PROPERTIES GENERATED TRUE)
+
+  # Custom version target that is always built, because CMake is told, that the command
+  # generating this file produces another file which is never written. Therefore this target
+  # is always out of date
+  add_custom_target(${GIT_SIGNATURE_PROJECT_NAME}-versionGIT_SIGNATURE_DESTINATION
+                    DEPENDS ${GIT_SIGNATURE_PROJECT_NAME}-always)
+
   # Check if a git executable was found on the system and if the source code is
   # under version control
   if(GIT_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.git/")
     message(STATUS "Generating signature ${GIT_SIGNATURE_PROJECT_NAME}-version from git")
-
-    set_source_files_properties(${GIT_SIGNATURE_DESTINATION} PROPERTIES GENERATED TRUE)
-
-    # Custom version target that is always built, because CMake is told, that the command
-    # generating this file produces another file which is never written. Therefore this target
-    # is always out of date
-    add_custom_target(${GIT_SIGNATURE_PROJECT_NAME}-version
-                      DEPENDS ${GIT_SIGNATURE_PROJECT_NAME}-always)
-
 
     # Tell CMake how to build the "always" file on which the target "version"
     # depends on. On this way we will also create the version file
@@ -51,6 +51,16 @@ function(git_signature)
                                                 -P ${CMAKE_SOURCE_DIR}/cmake/GenerateSignature.cmake)
   else()
     message(STATUS "${GIT_SIGNATURE_PROJECT_NAME}-version: Git not found or source code not under version control")
+
+    add_custom_command(OUTPUT ${GIT_SIGNATURE_PROJECT_NAME}-always ${GIT_SIGNATURE_DESTINATION}
+                       COMMENT "Generating ${GIT_SIGNATURE_PROJECT_NAME}-version"
+                       COMMAND ${CMAKE_COMMAND} -D GIT_EXECUTABLE=${GIT_EXECUTABLE}
+                                                -D CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR}
+                                                -D PROJECT_NAME=${GIT_SIGNATURE_PROJECT_NAME}
+                                                -D DESTINATION=${GIT_SIGNATURE_DESTINATION}
+                                                -D VERSION=${GIT_SIGNATURE_VERSION}
+                                                -D SCRIPT=${GIT_SIGNATURE_SCRIPT}
+                                                -P ${CMAKE_SOURCE_DIR}/cmake/GeneratePlainSignature.cmake)
   endif()
 
 endfunction()
