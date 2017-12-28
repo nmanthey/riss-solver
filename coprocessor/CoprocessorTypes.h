@@ -1402,9 +1402,9 @@ inline void CoprocessorData::garbageCollect(std::vector<Riss::CRef> ** updateVec
     Riss::ClauseAllocator to((ca.size() >= ca.wasted()) ? ca.size() - ca.wasted() : 0);  //FIXME just a workaround
     // correct add / remove would be nicer
 
-    DOUT(std::cerr << "c garbage collection ... " << std::endl;);
+    DOUT(if (solver->verbosity != 0) std::cerr << "c garbage collection ... " << std::endl;);
     relocAll(to, updateVectors);
-    DOUT(std::cerr << "c Garbage collection: " << ca.size()*Riss::ClauseAllocator::Unit_Size
+    DOUT(if (solver->verbosity != 0) std::cerr << "c Garbage collection: " << ca.size()*Riss::ClauseAllocator::Unit_Size
          << " bytes => " << to.size()*Riss::ClauseAllocator::Unit_Size <<  " bytes " << std::endl;);
 
     to.moveTo(ca);
