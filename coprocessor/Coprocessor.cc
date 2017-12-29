@@ -509,7 +509,7 @@ lbool Preprocessor::performSimplification()
     mc.stop();
     moh.stop();
 
-    if (config.opt_printStats) {
+    if (config.opt_printStats && solver->verbosity != 0) {
 
         printStatistics(cerr);
         propagation.printStatistics(cerr);
