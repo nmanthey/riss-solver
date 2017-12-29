@@ -65,6 +65,9 @@ message(STATUS "Compile with -fpic ${FPIC}")
 message(STATUS "Compile for gprof profiling ${PROFILING}")
 message(STATUS "Quiet ${QUIET}")
 
+# Link time optimization
+SET(CMAKE_AR  "gcc-ar")
+SET(CMAKE_RANLIB  "gcc-ranlib")
 # Output directory definitions
 # 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
@@ -109,6 +112,11 @@ include(GitSignature)
 # Compile flags:
 # 
 add_definitions("-D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -std=c++11 -g -DNDBG")
+
+# Link time optimization command line parameters
+set(CMAKE_EXE_LINKER_FLAGS    "${CMAKE_EXE_LINKER_FLAGS} -flto")     # link time optimization
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -flto")  # link time optimization
+add_definitions("-flto")
 
 if(ERRORS)
   message(STATUS "Treat warnings as errors")
