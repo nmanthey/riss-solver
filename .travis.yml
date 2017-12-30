@@ -27,6 +27,8 @@ before_install:
   - sudo apt-get install g++-5 gcc-5 -y
   - sudo apt-get install picosat
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 60 --slave /usr/bin/g++ g++ /usr/bin/g++-5
+  - sudo update-alternatives --install /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-5 60
+  - sudo update-alternatives --install /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-5 60
   - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
 
 addons:
