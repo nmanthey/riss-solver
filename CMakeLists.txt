@@ -53,6 +53,7 @@ option(DRATPROOF       "Produce DRAFT-proofs (disabled by default)" OFF)
 option(STATIC_BINARIES "Build fully statically linked binaries" ON)
 option(WARNINGS        "Set verbose warning flags" ON)
 option(PROFILING       "Compile for gprof profiling" OFF)
+option(FPIC            "Build shared library with -fpic" OFF)
 option(ERROR           "Turn warnings into errors" OFF)
 option(QUIET           "Disable all #warnings" OFF)
 
@@ -60,9 +61,13 @@ option(QUIET           "Disable all #warnings" OFF)
 message(STATUS "Build type ${CMAKE_BUILD_TYPE}")
 message(STATUS "Static binaries ${STATIC_BINARIES}")
 message(STATUS "Verbose warnings ${WARNINGS}")
+message(STATUS "Compile with -fpic ${FPIC}")
 message(STATUS "Compile for gprof profiling ${PROFILING}")
 message(STATUS "Quiet ${QUIET}")
 
+# Link time optimization
+SET(CMAKE_AR  "gcc-ar")
+SET(CMAKE_RANLIB  "gcc-ranlib")
 # Output directory definitions
 # 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
@@ -108,6 +113,11 @@ include(GitSignature)
 # 
 add_definitions("-D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -std=c++11 -g -DNDBG")
 
+# Link time optimization command line parameters
+set(CMAKE_EXE_LINKER_FLAGS    "${CMAKE_EXE_LINKER_FLAGS} -flto")     # link time optimization
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -flto")  # link time optimization
+add_definitions("-flto")
+
 if(ERRORS)
   message(STATUS "Treat warnings as errors")
   add_definitions("-Werror")
@@ -129,6 +139,18 @@ if(CMAKE_COMPILER_IS_GNUCXX)
      add_definitions("-pg -O1")
      SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -pg -O1" )
    endif()
+endif()
+
+if(FPIC)
+  message(STATUS "enable -fpic")
+  add_definitions("-fpic")
+
+  # Combined riss and coprocessor library. This makes linking against riss with
+  # the usage of coprocessor simpler (you only have to link against one lib).
+  add_library(riss-coprocessor-lib-shared SHARED $<TARGET_OBJECTS:riss-lib-object> $<TARGET_OBJECTS:coprocessor-lib-object>)
+  set_target_properties(riss-coprocessor-lib-shared PROPERTIES OUTPUT_NAME "riss-coprocessor")
+  set_property(TARGET riss-coprocessor-lib-shared PROPERTY POSITION_INDEPENDENT_CODE ON)
+  target_link_libraries(riss-coprocessor-lib-shared z pthread rt)
 endif()
 
 

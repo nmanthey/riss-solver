@@ -18,7 +18,7 @@ fi
 # run cmake, to create necessary version files
 mkdir tmp_$$
 cd tmp_$$
-cmake -DQUIET=ON -DCMAKE_BUILD_TYPE=Release -DSTATIC_BINARIES=ON -DCLASSIFIER=ON ..
+cmake -DQUIET=ON -DCMAKE_BUILD_TYPE=Release -DSTATIC_BINARIES=ON ..
 cd ..
 rm -r tmp_$$
 

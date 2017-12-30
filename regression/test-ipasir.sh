@@ -37,6 +37,11 @@ rm -rf sat/riss_7/*
 mv ../../riss_7.tar.gz sat/riss_7/
 cp ../../scripts/ipasir-makefile sat/riss_7/makefile
 
+# build the dynamic library
+make -C sat/riss_7 libipasirriss_7.so
+ls sat/riss_7/libriss-coprocessor.so
+rm sat/riss_7/libriss-coprocessor.so
+
 # build one example tool
 ./scripts/mkone.sh genipafolio riss_7
 

@@ -59,7 +59,14 @@ do
     cd $build_folder
 
     # make all
+    echo "$build_type build - test cmake flags"
+    rm -rf *
+    cmake -DCMAKE_BUILD_TYPE=$build_type -DDRATPROOF=ON  -DFPIC=ON -DSTATIC_BINARIES=OFF ..
+    make all -j $(nproc)
+
+    # create the actual build files
     echo "$build_type build"
+    rm -rf *
     cmake -DCMAKE_BUILD_TYPE=$build_type -DDRATPROOF=OFF ..
     make all -j $(nproc)
     # necessary for parallel builds
