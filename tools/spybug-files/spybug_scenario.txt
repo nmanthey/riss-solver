@@ -1,0 +1,4 @@
+cutoff_time = 5
+instance_file = ./instances.txt
+algo = python -u ../scripts/SATCSSCWrapper.py --mem-limit 3000 --script ../../spybug-files/rissWrapper.py --sat-checker ../scripts/SAT --sol-file .
+paramfile = ../../spybug-files/riss.pcs
