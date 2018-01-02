@@ -26,6 +26,7 @@ before_install:
   - sudo apt-get remove gcc g++
   - sudo apt-get install g++-5 gcc-5 -y
   - sudo apt-get install picosat
+  - sudo apt-get install swig python-pip -y
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 60 --slave /usr/bin/g++ g++ /usr/bin/g++-5
   - sudo update-alternatives --install /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-5 60
   - sudo update-alternatives --install /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-5 60
