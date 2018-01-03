@@ -54,5 +54,7 @@ before_script:
 # run the typical ci checks, run code style check first
 script:
   - which g++ && which gcc && g++ -dumpversion
+  - which python
+  - python --version
+  - regression/test-SMAC3.sh
   - regression/test-codestyle.sh
-  - scripts/ci.sh
