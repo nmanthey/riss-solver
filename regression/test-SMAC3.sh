@@ -43,7 +43,7 @@ if [ -z "$PRESENT" ]
 then
 	virtualenv SMAC_python_env
 	source SMAC_python_env/bin/activate
-	cat requirements.txt | xargs -n 1 -L 1 pip3 install
+	cat requirements.txt | xargs -n 1 -L 1 pip3 install --user || true
 	python3 setup.py install
 fi
 
